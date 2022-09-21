@@ -11,15 +11,8 @@
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
-#include <random>
+#include <cstdlib>
 #include <iostream>
-
-// GLuint hexapod_meshes_for_lit_color_texture_program = 0;
-// Load< MeshBuffer > hexapod_meshes(LoadTagDefault, []() -> MeshBuffer const * {
-// 	MeshBuffer const *ret = new MeshBuffer(data_path("hexapod.pnct"));
-// 	hexapod_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
-// 	return ret;
-// });
 
 GLuint amogus_meshes_for_lit_color_texture_program = 0;
 Load< MeshBuffer > amogus_meshes(LoadTagDefault, []() -> MeshBuffer const * {
@@ -27,23 +20,6 @@ Load< MeshBuffer > amogus_meshes(LoadTagDefault, []() -> MeshBuffer const * {
 	amogus_meshes_for_lit_color_texture_program = ret->make_vao_for_program(lit_color_texture_program->program);
 	return ret;
 });
-
-// Load< Scene > hexapod_scene(LoadTagDefault, []() -> Scene const * {
-// 	return new Scene(data_path("hexapod.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name){
-// 		Mesh const &mesh = hexapod_meshes->lookup(mesh_name);
-
-// 		scene.drawables.emplace_back(transform);
-// 		Scene::Drawable &drawable = scene.drawables.back();
-
-// 		drawable.pipeline = lit_color_texture_program_pipeline;
-
-// 		drawable.pipeline.vao = hexapod_meshes_for_lit_color_texture_program;
-// 		drawable.pipeline.type = mesh.type;
-// 		drawable.pipeline.start = mesh.start;
-// 		drawable.pipeline.count = mesh.count;
-
-// 	});
-// });
 
 Load< Scene > amogus_scene(LoadTagDefault, []() -> Scene const * {
 	return new Scene(data_path("amogus.scene"), [&](Scene &scene, Scene::Transform *transform, std::string const &mesh_name) {
@@ -66,43 +42,9 @@ Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample c
 });
 
 PlayMode::PlayMode() : scene(*amogus_scene) {
-	//get pointers to leg for convenience:
-	// for (auto &transform : scene.transforms) {
-	// 	if (transform.name == "Hip.FL") hip = &transform;
-	// 	else if (transform.name == "UpperLeg.FL") upper_leg = &transform;
-	// 	else if (transform.name == "LowerLeg.FL") lower_leg = &transform;
-	// }
-	// if (hip == nullptr) throw std::runtime_error("Hip not found.");
-	// if (upper_leg == nullptr) throw std::runtime_error("Upper leg not found.");
-	// if (lower_leg == nullptr) throw std::runtime_error("Lower leg not found.");
-
-	// hip_base_rotation = hip->rotation;
-	// upper_leg_base_rotation = upper_leg->rotation;
-	// lower_leg_base_rotation = lower_leg->rotation;
-	
-
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
 	camera = &scene.cameras.front();
-
-	// Spawn dummy enemy for now
-	Mesh const &mesh = amogus_meshes->lookup("Amogus.Green");
-	Scene::Transform *new_trans = new Scene::Transform();
-	new_trans->name = "Astronaut0";
-	scene.drawables.emplace_back(new_trans);
-	Scene::Drawable &drawable = scene.drawables.back();
-	drawable.pipeline = lit_color_texture_program_pipeline;
-	drawable.pipeline.vao = amogus_meshes_for_lit_color_texture_program;
-	drawable.pipeline.type = mesh.type;
-	drawable.pipeline.start = mesh.start;
-	drawable.pipeline.count = mesh.count;
-	std::cout << "created transform and added to drawables" << std::endl;
-	Enemy *new_enemy = new Enemy {};
-	new_enemy->transform = new_trans;
-	new_enemy->type = EnemyType::GREEN;
-	new_enemy->dest_queue.push_back(camera->transform);
-	active_enemies[0] = new_enemy;
-	std::cout << "dummy enemy created" << std::endl;
 
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
@@ -144,7 +86,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_3) {
 			three.downs += 1;
-			down.pressed = true;
+			three.pressed = true;
 			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
@@ -213,14 +155,106 @@ glm::quat safe_quat_lookat(glm::vec3 const &fromPos, glm::vec3 const &toPos,
 	return glm::quatLookAt(dir, rotateAround);
 }
 
+void PlayMode::try_spawn_enemy() {
+	for (uint i = 0; i < PlayMode::MaxEnemies; i++) {
+		if (active_enemies[i] != nullptr)
+			continue;
+		
+		// From https://en.cppreference.com/w/cpp/numeric/random/rand
+		std::srand(std::time(nullptr));
+		uint type_int = (std::rand() % NumEnemyTypes);
+		uint dir_int = std::rand() % 2;
+		std::cout << "type_int: " << type_int << "dir_int: " << dir_int << std::endl;
+
+		Enemy *new_enemy = new Enemy {};
+		Scene::Transform *new_trans = new Scene::Transform();
+		new_trans->name = "Astronaut" + std::to_string(i);
+		new_enemy->drawables_idx = scene.drawables.size();
+		scene.drawables.emplace_back(new_trans);
+		Scene::Drawable &drawable = scene.drawables.back();
+		drawable.pipeline = lit_color_texture_program_pipeline;
+		drawable.pipeline.vao = amogus_meshes_for_lit_color_texture_program;
+
+		// Duplicate code cuz idk the proper way to do this otherwise
+		switch (type_int) {
+			case 0: {
+				const Mesh& mesh = amogus_meshes->lookup("Amogus.Red");
+				new_enemy->enemy_type = EnemyType::RED;
+				drawable.pipeline.type = mesh.type;
+				drawable.pipeline.start = mesh.start;
+				drawable.pipeline.count = mesh.count;
+				break; }
+			case 1: {
+				const Mesh& mesh = amogus_meshes->lookup("Amogus.Green");
+				new_enemy->enemy_type = EnemyType::GREEN;
+				drawable.pipeline.type = mesh.type;
+				drawable.pipeline.start = mesh.start;
+				drawable.pipeline.count = mesh.count;
+				break; }
+			case 2: {
+				const Mesh& mesh = amogus_meshes->lookup("Amogus.Yellow");
+				new_enemy->enemy_type = EnemyType::YELLOW;
+				drawable.pipeline.type = mesh.type;
+				drawable.pipeline.start = mesh.start;
+				drawable.pipeline.count = mesh.count;
+				break; }
+			default:
+				std::cerr << "Invalid random enemy int: " << type_int << std::endl;
+				return;
+		}
+		new_enemy->transform = new_trans;
+		new_enemy->transform->position = glm::vec3(0.0f, 12.0f, 2.12f);
+		switch (dir_int) {
+			case 0:
+				new_enemy->dest_queue.push(glm::vec3(10.0f,15.0f,2.12f));
+				break;
+			case 1:
+				new_enemy->dest_queue.push(glm::vec3(-10.0f,15.0f,2.12f));
+				break;
+			default:
+				std::cerr << "Invalid random enemy direction int: " << dir_int << std::endl;
+				return;
+		}
+		new_enemy->dest_queue.push(camera->transform->position);
+		new_enemy->enemy_list_idx = i;
+		active_enemies[i] = new_enemy;
+		return;
+	}
+}
+
 void PlayMode::Enemy::update(float elapsed) {
 	// update position
 	// TODO: add popping from dest queue and updating dest and looking at next dest
 
-	Scene::Transform *dest = dest_queue.front();
-	glm::vec3 move_dir = dest->position - transform->position;
+	glm::vec3 dest = dest_queue.front();
+	glm::vec3 move_dir = dest - transform->position;
 	move_dir = glm::normalize(move_dir);
 	transform->position = transform->position + (move_dir * Enemy::MoveSpeed * elapsed);
+	// do this every frame for now
+	// TODO: don't do this every frame if necessary
+	transform->rotation = safe_quat_lookat(transform->position, dest);
+
+	if (glm::distance(transform->position, dest) < 0.5f &&
+			dest_queue.size() > 1) {
+		dest_queue.pop();
+	}
+}
+
+PlayMode::Enemy *PlayMode::get_closest_enemy() {
+	float closest_dist = 100000000.0f;
+	Enemy *closest_enemy = nullptr;
+	for (uint i = 0; i < PlayMode::MaxEnemies; i++) {
+		Enemy *cur_enemy = active_enemies[i];
+		if (cur_enemy == nullptr)
+			continue;
+		float cur_dist = glm::distance(cur_enemy->transform->position,
+			camera->transform->position);
+		if (cur_dist < closest_dist) {
+			closest_dist = cur_dist;
+			closest_enemy = cur_enemy;
+		}
+	}
+	return closest_enemy;
 }
 
 void PlayMode::update(float elapsed) {
@@ -276,9 +310,73 @@ void PlayMode::update(float elapsed) {
 
 	// update enemies:
 	{
+		enemy_spawn_timer += elapsed;
+		if (enemy_spawn_timer >= PlayMode::EnemySpawnDelay) {
+			try_spawn_enemy();
+			enemy_spawn_timer -= PlayMode::EnemySpawnDelay;
+		}
 		for (auto &enemy : active_enemies) {
 			if (enemy != nullptr)
 				enemy->update(elapsed);
+		}
+	}
+
+	// check if shooting:
+	// Fortunately, my enemies are color-coded so it's pretty easy to implement
+	// a VERY VERY VERY BASIC shooting system.
+	{
+		shoot_timer += elapsed;
+		if (shoot_timer >= PlayMode::ShootDelay && (one.pressed ||
+				two.pressed || three.pressed)) {
+			shoot_timer = 0.0f;
+			float pixel[4];
+			EnemyType hit_enemy_type;
+			glReadPixels(screen_dims.x / 2, screen_dims.y / 2, 
+				1, 1, GL_RGBA, GL_FLOAT, &pixel);
+			
+			// Check for the color of the closest guy.
+			if (pixel[0] >= 4 * pixel[1] && pixel[0] >= 4 * pixel[2]) {
+				std::cout << "red guy detected" << std::endl;
+				hit_enemy_type = RED;
+			} else if (pixel[1] >= 4 * pixel[0] && pixel[1] >= 4 * pixel[2]) {
+				std::cout << "green guy detected" << std::endl;
+				hit_enemy_type = GREEN;
+			} else if (pixel[0] >= 4 * pixel[2] && pixel[1] >= 4 * pixel[2]) {
+				std::cout << "yellow guy detected" << std::endl;
+				hit_enemy_type = YELLOW;
+			} else {
+				std::cout << "unable to determine color of guy at center of screen" << std::endl;
+				hit_enemy_type = DEFAULT;
+			}
+			Enemy *closest_enemy = get_closest_enemy();
+			if (closest_enemy != nullptr && 
+					closest_enemy->enemy_type == hit_enemy_type) {
+				std::cout << "The color of the closest guy == color that the camera is looking at" << std::endl;
+				// The color of the closest guy is equal to the color that
+				// the camera is looking at.
+				if (one.pressed && !two.pressed && !three.pressed &&
+						hit_enemy_type == RED) {
+					// Correctly hit a red guy while pressing the red key.
+					enemies_to_delete.push(closest_enemy->enemy_list_idx);
+				} else if (!one.pressed && two.pressed && !three.pressed &&
+						hit_enemy_type == GREEN) {
+					// Correctly hit a green guy while pressing the green key.
+					enemies_to_delete.push(closest_enemy->enemy_list_idx);
+				} else if (!one.pressed && !two.pressed && three.pressed &&
+						hit_enemy_type == YELLOW) {
+					// Correctly hit a yellow guy while pressing the yellow key.
+					enemies_to_delete.push(closest_enemy->enemy_list_idx);
+				}
+			}
+		}
+		// TODO: delete enemies that need to be deleted
+		for (; !enemies_to_delete.empty(); enemies_to_delete.pop()) {
+			uint enemy_idx = enemies_to_delete.front();
+			auto it = scene.drawables.begin();
+			std::advance(it, active_enemies[enemy_idx]->drawables_idx);
+			scene.drawables.erase(it);
+			delete active_enemies[enemy_idx];
+			active_enemies[enemy_idx] = nullptr;
 		}
 	}
 
@@ -287,9 +385,13 @@ void PlayMode::update(float elapsed) {
 	right.downs = 0;
 	up.downs = 0;
 	down.downs = 0;
+	one.downs = 0;
+	two.downs = 0;
+	three.downs = 0;
 }
 
 void PlayMode::draw(glm::uvec2 const &drawable_size) {
+	screen_dims = drawable_size; // is there a better way to do this?
 	//update camera aspect ratio for drawable:
 	camera->aspect = float(drawable_size.x) / float(drawable_size.y);
 

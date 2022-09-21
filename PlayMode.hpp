@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 
 #include <vector>
-#include <deque>
+#include <queue>
 
 struct PlayMode : Mode {
 	PlayMode();
@@ -25,42 +25,42 @@ struct PlayMode : Mode {
 		uint8_t pressed = 0;
 	} left, right, down, up, one, two, three;
 
+	// Enemy Stuff:
 	enum EnemyType {
 		DEFAULT = 0,
 		RED = 1,
 		GREEN = 2,
 		YELLOW = 3
 	};
+	static constexpr uint NumEnemyTypes = 3;
 	struct Enemy {
 		// Properties
-		static constexpr float MoveSpeed = 10.0f;
+		static constexpr float MoveSpeed = 5.0f;
 
 		// Methods
 		void update(float elapsed);
 
 		Scene::Transform *transform = nullptr;
-		std::deque< Scene::Transform* > dest_queue = {};
-		EnemyType type = EnemyType::DEFAULT;
+		std::queue< glm::vec3 > dest_queue = {}; // assumes destinations don't change
+		EnemyType enemy_type = EnemyType::DEFAULT;
 		uint enemy_list_idx = 0;
+		uint drawables_idx = 0;
 	};
-	static constexpr uint MaxEnemies = 15;
+	static constexpr float EnemySpawnDelay = 1.0f;
+	static constexpr uint MaxEnemies = 1;
+	void try_spawn_enemy();
+	Enemy *get_closest_enemy();
+	float enemy_spawn_timer = 0.0f;
 	PlayMode::Enemy *active_enemies[PlayMode::MaxEnemies] = 
-		{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 
-		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
-	std::deque< uint > enemies_to_delete;
+		{nullptr};
+	std::queue< uint > enemies_to_delete;
+
+	// Shooting Stuff:
+	static constexpr float ShootDelay = 0.5f;
+	float shoot_timer = 0.0f;
 
 	//local copy of the game scene (so code can change it during gameplay):
 	Scene scene;
-
-	//hexapod leg to wobble:
-	// Scene::Transform *hip = nullptr;
-	// Scene::Transform *upper_leg = nullptr;
-	// Scene::Transform *lower_leg = nullptr;
-	// glm::quat hip_base_rotation;
-	// glm::quat upper_leg_base_rotation;
-	// glm::quat lower_leg_base_rotation;
-	// float wobble = 0.0f;
-	// glm::vec3 get_leg_tip_position();
 
 	Scene::Transform *amogus = nullptr;
 
@@ -70,5 +70,8 @@ struct PlayMode : Mode {
 	
 	//camera:
 	Scene::Camera *camera = nullptr;
+
+	// screen dimensions (is there a better way to do this???)
+	glm::uvec2 screen_dims;
 
 };
