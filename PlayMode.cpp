@@ -147,7 +147,6 @@ void PlayMode::try_spawn_enemy() {
 		std::srand(std::time(nullptr));
 		uint type_int = (std::rand() % NumEnemyTypes);
 		uint dir_int = std::rand() % 2;
-		std::cout << "type_int: " << type_int << "dir_int: " << dir_int << std::endl;
 
 		Enemy *new_enemy = new Enemy {};
 		Scene::Transform *new_trans = new Scene::Transform();
@@ -181,7 +180,6 @@ void PlayMode::try_spawn_enemy() {
 				drawable.pipeline.count = mesh.count;
 				break; }
 			default:
-				std::cerr << "Invalid random enemy int: " << type_int << std::endl;
 				return;
 		}
 		new_enemy->transform = new_trans;
@@ -194,7 +192,6 @@ void PlayMode::try_spawn_enemy() {
 				new_enemy->dest_queue.push(glm::vec3(-10.0f,15.0f,2.12f));
 				break;
 			default:
-				std::cerr << "Invalid random enemy direction int: " << dir_int << std::endl;
 				return;
 		}
 		new_enemy->dest_queue.push(camera->transform->position);
@@ -262,22 +259,17 @@ void PlayMode::handle_shooting(float elapsed) {
 		
 		// Check for the color of the closest guy.
 		if (pixel[0] >= 4 * pixel[1] && pixel[0] >= 4 * pixel[2]) {
-			std::cout << "red guy detected" << std::endl;
 			hit_enemy_type = RED;
 		} else if (pixel[1] >= 4 * pixel[0] && pixel[1] >= 4 * pixel[2]) {
-			std::cout << "green guy detected" << std::endl;
 			hit_enemy_type = GREEN;
 		} else if (pixel[0] >= 4 * pixel[2] && pixel[1] >= 4 * pixel[2]) {
-			std::cout << "yellow guy detected" << std::endl;
 			hit_enemy_type = YELLOW;
 		} else {
-			std::cout << "unable to determine color of guy at center of screen" << std::endl;
 			hit_enemy_type = DEFAULT;
 		}
 		Enemy *closest_enemy = get_closest_enemy();
 		if (closest_enemy != nullptr && 
 				closest_enemy->enemy_type == hit_enemy_type) {
-			std::cout << "The color of the closest guy == color that the camera is looking at" << std::endl;
 			// The color of the closest guy is equal to the color that
 			// the camera is looking at.
 			if (one.pressed && !two.pressed && !three.pressed &&
