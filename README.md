@@ -20,6 +20,8 @@ The game has the player fight off against endless waves of incoming enemies! The
 
 ## Extra Notes:
 
+I wasn't quite sure how text worked while making the game, so I just replaced the original game message.
+
 If I had more time, I would have wanted the enemies to make their own sounds to indicate how the player should respond. However, I couldn't think of a clever way to implement this without flooding the player with sound.
 
 Also, I made the among us characters because I knew there would be a plethora of blender tutorials for how to make them. I gave them rigs but then I realized that's not how we animate things here.
