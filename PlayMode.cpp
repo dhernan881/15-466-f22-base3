@@ -41,6 +41,18 @@ Load< Sound::Sample > rap_sample(LoadTagDefault, []() -> Sound::Sample const * {
 	return new Sound::Sample(data_path("among_us_rap.opus"));
 });
 
+Load< Sound::Sample > fart_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("fart_sound_effect.wav"));
+});
+
+Load< Sound::Sample > laser_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("laser_sound_effect.wav"));
+});
+
+Load< Sound::Sample > pew_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("pew_sound_effect.wav"));
+});
+
 PlayMode::PlayMode() : scene(*amogus_scene) {
 	//get pointer to camera for convenience:
 	if (scene.cameras.size() != 1) throw std::runtime_error("Expecting scene to have exactly one camera, but it has " + std::to_string(scene.cameras.size()));
@@ -170,7 +182,6 @@ void PlayMode::try_spawn_enemy() {
 		Enemy *new_enemy = new Enemy {};
 		Scene::Transform *new_trans = new Scene::Transform();
 		new_trans->name = "Astronaut" + std::to_string(i);
-		new_enemy->drawables_idx = scene.drawables.size();
 		scene.drawables.emplace_back(new_trans);
 		Scene::Drawable &drawable = scene.drawables.back();
 		drawable.pipeline = lit_color_texture_program_pipeline;
@@ -330,6 +341,13 @@ void PlayMode::update(float elapsed) {
 		shoot_timer += elapsed;
 		if (shoot_timer >= PlayMode::ShootDelay && (one.pressed ||
 				two.pressed || three.pressed)) {
+			if (one.pressed) {
+				Sound::play(*laser_sample);
+			} else if (two.pressed) {
+				Sound::play(*pew_sample);
+			} else if (three.pressed) {
+				Sound::play(*fart_sample);
+			}
 			shoot_timer = 0.0f;
 			float pixel[4];
 			EnemyType hit_enemy_type;
@@ -374,9 +392,8 @@ void PlayMode::update(float elapsed) {
 		// TODO: delete enemies that need to be deleted
 		for (; !enemies_to_delete.empty(); enemies_to_delete.pop()) {
 			uint enemy_idx = enemies_to_delete.front();
-			auto it = scene.drawables.begin();
-			std::advance(it, active_enemies[enemy_idx]->drawables_idx);
-			scene.drawables.erase(it);
+			// Very bad idea: just move the mesh out of sight.
+			active_enemies[enemy_idx]->transform->position = glm::vec3(0.0f, 0.0f, -10.0f);
 			delete active_enemies[enemy_idx];
 			active_enemies[enemy_idx] = nullptr;
 		}

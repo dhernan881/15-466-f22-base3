@@ -44,15 +44,15 @@ struct PlayMode : Mode {
 		std::queue< glm::vec3 > dest_queue = {}; // assumes destinations don't change
 		EnemyType enemy_type = EnemyType::DEFAULT;
 		uint enemy_list_idx = 0;
-		uint drawables_idx = 0;
 	};
 	static constexpr float EnemySpawnDelay = 1.0f;
-	static constexpr uint MaxEnemies = 1;
+	static constexpr uint MaxEnemies = 15;
 	void try_spawn_enemy();
 	Enemy *get_closest_enemy();
 	float enemy_spawn_timer = 0.0f;
 	PlayMode::Enemy *active_enemies[PlayMode::MaxEnemies] = 
-		{nullptr};
+		{nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+			nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr};
 	std::queue< uint > enemies_to_delete;
 
 	// Shooting Stuff:
@@ -63,10 +63,6 @@ struct PlayMode : Mode {
 	Scene scene;
 
 	Scene::Transform *amogus = nullptr;
-
-
-	//music coming from the tip of the leg (as a demonstration):
-	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
 
 	// Game music:
 	std::shared_ptr< Sound::PlayingSample > music_loop;
