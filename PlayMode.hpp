@@ -66,7 +66,10 @@ struct PlayMode : Mode {
 
 
 	//music coming from the tip of the leg (as a demonstration):
-	std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
+	// std::shared_ptr< Sound::PlayingSample > leg_tip_loop;
+
+	// Game music:
+	std::shared_ptr< Sound::PlayingSample > music_loop;
 	
 	//camera:
 	Scene::Camera *camera = nullptr;

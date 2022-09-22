@@ -37,8 +37,8 @@ Load< Scene > amogus_scene(LoadTagDefault, []() -> Scene const * {
 	});
 });
 
-Load< Sound::Sample > dusty_floor_sample(LoadTagDefault, []() -> Sound::Sample const * {
-	return new Sound::Sample(data_path("dusty-floor.opus"));
+Load< Sound::Sample > rap_sample(LoadTagDefault, []() -> Sound::Sample const * {
+	return new Sound::Sample(data_path("among_us_rap.opus"));
 });
 
 PlayMode::PlayMode() : scene(*amogus_scene) {
@@ -48,7 +48,8 @@ PlayMode::PlayMode() : scene(*amogus_scene) {
 
 	//start music loop playing:
 	// (note: position will be over-ridden in update())
-	leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, glm::vec3(0.0f), 10.0f);
+	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, glm::vec3(0.0f), 10.0f);
+	music_loop = Sound::loop(*rap_sample);
 }
 
 PlayMode::~PlayMode() {
@@ -324,6 +325,7 @@ void PlayMode::update(float elapsed) {
 	// check if shooting:
 	// Fortunately, my enemies are color-coded so it's pretty easy to implement
 	// a VERY VERY VERY BASIC shooting system.
+	// From: https://en.m.wikibooks.org/wiki/OpenGL_Programming/Object_selection
 	{
 		shoot_timer += elapsed;
 		if (shoot_timer >= PlayMode::ShootDelay && (one.pressed ||
@@ -440,8 +442,3 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 	}
 	GL_ERRORS();
 }
-
-// glm::vec3 PlayMode::get_leg_tip_position() {
-// 	//the vertex position here was read from the model in blender:
-// 	return lower_leg->make_local_to_world() * glm::vec4(-1.26137f, -11.861f, 0.0f, 1.0f);
-// }
