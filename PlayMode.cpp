@@ -59,8 +59,6 @@ PlayMode::PlayMode() : scene(*amogus_scene) {
 	camera = &scene.cameras.front();
 
 	//start music loop playing:
-	// (note: position will be over-ridden in update())
-	// leg_tip_loop = Sound::loop_3D(*dusty_floor_sample, 1.0f, glm::vec3(0.0f), 10.0f);
 	music_loop = Sound::loop(*rap_sample);
 }
 
@@ -72,22 +70,6 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 	if (evt.type == SDL_KEYDOWN) {
 		if (evt.key.keysym.sym == SDLK_ESCAPE) {
 			SDL_SetRelativeMouseMode(SDL_FALSE);
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_a) {
-			left.downs += 1;
-			left.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_d) {
-			right.downs += 1;
-			right.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_w) {
-			up.downs += 1;
-			up.pressed = true;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_s) {
-			down.downs += 1;
-			down.pressed = true;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_1) {
 			one.downs += 1;
@@ -103,19 +85,7 @@ bool PlayMode::handle_event(SDL_Event const &evt, glm::uvec2 const &window_size)
 			return true;
 		}
 	} else if (evt.type == SDL_KEYUP) {
-		if (evt.key.keysym.sym == SDLK_a) {
-			left.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_d) {
-			right.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_w) {
-			up.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_s) {
-			down.pressed = false;
-			return true;
-		} else if (evt.key.keysym.sym == SDLK_1) {
+		if (evt.key.keysym.sym == SDLK_1) {
 			one.pressed = false;
 			return true;
 		} else if (evt.key.keysym.sym == SDLK_2) {
@@ -236,19 +206,23 @@ void PlayMode::try_spawn_enemy() {
 
 void PlayMode::Enemy::update(float elapsed) {
 	// update position
-	// TODO: add popping from dest queue and updating dest and looking at next dest
-
 	glm::vec3 dest = dest_queue.front();
 	glm::vec3 move_dir = dest - transform->position;
 	move_dir = glm::normalize(move_dir);
 	transform->position = transform->position + (move_dir * Enemy::MoveSpeed * elapsed);
-	// do this every frame for now
+
+	// Do this every frame for now
 	// TODO: don't do this every frame if necessary
 	transform->rotation = safe_quat_lookat(transform->position, dest);
-
 	if (glm::distance(transform->position, dest) < 0.5f &&
 			dest_queue.size() > 1) {
 		dest_queue.pop();
+	}
+
+	// Check if player died
+	if (glm::distance(transform->position, 
+			std::dynamic_pointer_cast<PlayMode>(Mode::current)->camera->transform->position) < 5.0f) {
+		std::dynamic_pointer_cast<PlayMode>(Mode::current)->is_dead = true;
 	}
 }
 
@@ -269,50 +243,64 @@ PlayMode::Enemy *PlayMode::get_closest_enemy() {
 	return closest_enemy;
 }
 
-void PlayMode::update(float elapsed) {
-
-	//slowly rotates through [0,1):
-	// wobble += elapsed / 10.0f;
-	// wobble -= std::floor(wobble);
-
-	// hip->rotation = hip_base_rotation * glm::angleAxis(
-	// 	glm::radians(5.0f * std::sin(wobble * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 1.0f, 0.0f)
-	// );
-	// upper_leg->rotation = upper_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(7.0f * std::sin(wobble * 2.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-	// lower_leg->rotation = lower_leg_base_rotation * glm::angleAxis(
-	// 	glm::radians(10.0f * std::sin(wobble * 3.0f * 2.0f * float(M_PI))),
-	// 	glm::vec3(0.0f, 0.0f, 1.0f)
-	// );
-
-	// //move sound to follow leg tip position:
-	// leg_tip_loop->set_position(get_leg_tip_position(), 1.0f / 60.0f);
-
-	//move camera:
-	{
-
-		//combine inputs into a move:
-		constexpr float PlayerSpeed = 30.0f;
-		glm::vec2 move = glm::vec2(0.0f);
-		if (left.pressed && !right.pressed) move.x =-1.0f;
-		if (!left.pressed && right.pressed) move.x = 1.0f;
-		if (down.pressed && !up.pressed) move.y =-1.0f;
-		if (!down.pressed && up.pressed) move.y = 1.0f;
-
-		//make it so that moving diagonally doesn't go faster:
-		if (move != glm::vec2(0.0f)) move = glm::normalize(move) * PlayerSpeed * elapsed;
-
-		glm::mat4x3 frame = camera->transform->make_local_to_parent();
-		glm::vec3 frame_right = frame[0];
-		//glm::vec3 up = frame[1];
-		glm::vec3 frame_forward = -frame[2];
-
-		camera->transform->position += move.x * frame_right + move.y * frame_forward;
+void PlayMode::handle_shooting(float elapsed) {
+	shoot_timer += elapsed;
+	if (shoot_timer >= PlayMode::ShootDelay && (one.pressed ||
+			two.pressed || three.pressed)) {
+		if (one.pressed) {
+			Sound::play(*laser_sample);
+		} else if (two.pressed) {
+			Sound::play(*pew_sample);
+		} else if (three.pressed) {
+			Sound::play(*fart_sample);
+		}
+		shoot_timer = 0.0f;
+		float pixel[4];
+		EnemyType hit_enemy_type;
+		glReadPixels(screen_dims.x / 2, screen_dims.y / 2, 
+			1, 1, GL_RGBA, GL_FLOAT, &pixel);
+		
+		// Check for the color of the closest guy.
+		if (pixel[0] >= 4 * pixel[1] && pixel[0] >= 4 * pixel[2]) {
+			std::cout << "red guy detected" << std::endl;
+			hit_enemy_type = RED;
+		} else if (pixel[1] >= 4 * pixel[0] && pixel[1] >= 4 * pixel[2]) {
+			std::cout << "green guy detected" << std::endl;
+			hit_enemy_type = GREEN;
+		} else if (pixel[0] >= 4 * pixel[2] && pixel[1] >= 4 * pixel[2]) {
+			std::cout << "yellow guy detected" << std::endl;
+			hit_enemy_type = YELLOW;
+		} else {
+			std::cout << "unable to determine color of guy at center of screen" << std::endl;
+			hit_enemy_type = DEFAULT;
+		}
+		Enemy *closest_enemy = get_closest_enemy();
+		if (closest_enemy != nullptr && 
+				closest_enemy->enemy_type == hit_enemy_type) {
+			std::cout << "The color of the closest guy == color that the camera is looking at" << std::endl;
+			// The color of the closest guy is equal to the color that
+			// the camera is looking at.
+			if (one.pressed && !two.pressed && !three.pressed &&
+					hit_enemy_type == RED) {
+				// Correctly hit a red guy while pressing the red key.
+				score++;
+				enemies_to_delete.push(closest_enemy->enemy_list_idx);
+			} else if (!one.pressed && two.pressed && !three.pressed &&
+					hit_enemy_type == GREEN) {
+				// Correctly hit a green guy while pressing the green key.
+				score++;
+				enemies_to_delete.push(closest_enemy->enemy_list_idx);
+			} else if (!one.pressed && !two.pressed && three.pressed &&
+					hit_enemy_type == YELLOW) {
+				// Correctly hit a yellow guy while pressing the yellow key.
+				score++;
+				enemies_to_delete.push(closest_enemy->enemy_list_idx);
+			}
+		}
 	}
+}
 
+void PlayMode::update(float elapsed) {
 	{ //update listener to camera position:
 		glm::mat4x3 frame = camera->transform->make_local_to_parent();
 		glm::vec3 frame_right = frame[0];
@@ -321,7 +309,7 @@ void PlayMode::update(float elapsed) {
 	}
 
 	// update enemies:
-	{
+	if (!is_dead) {
 		enemy_spawn_timer += elapsed;
 		if (enemy_spawn_timer >= PlayMode::EnemySpawnDelay) {
 			try_spawn_enemy();
@@ -337,73 +325,19 @@ void PlayMode::update(float elapsed) {
 	// Fortunately, my enemies are color-coded so it's pretty easy to implement
 	// a VERY VERY VERY BASIC shooting system.
 	// From: https://en.m.wikibooks.org/wiki/OpenGL_Programming/Object_selection
-	{
-		shoot_timer += elapsed;
-		if (shoot_timer >= PlayMode::ShootDelay && (one.pressed ||
-				two.pressed || three.pressed)) {
-			if (one.pressed) {
-				Sound::play(*laser_sample);
-			} else if (two.pressed) {
-				Sound::play(*pew_sample);
-			} else if (three.pressed) {
-				Sound::play(*fart_sample);
-			}
-			shoot_timer = 0.0f;
-			float pixel[4];
-			EnemyType hit_enemy_type;
-			glReadPixels(screen_dims.x / 2, screen_dims.y / 2, 
-				1, 1, GL_RGBA, GL_FLOAT, &pixel);
-			
-			// Check for the color of the closest guy.
-			if (pixel[0] >= 4 * pixel[1] && pixel[0] >= 4 * pixel[2]) {
-				std::cout << "red guy detected" << std::endl;
-				hit_enemy_type = RED;
-			} else if (pixel[1] >= 4 * pixel[0] && pixel[1] >= 4 * pixel[2]) {
-				std::cout << "green guy detected" << std::endl;
-				hit_enemy_type = GREEN;
-			} else if (pixel[0] >= 4 * pixel[2] && pixel[1] >= 4 * pixel[2]) {
-				std::cout << "yellow guy detected" << std::endl;
-				hit_enemy_type = YELLOW;
-			} else {
-				std::cout << "unable to determine color of guy at center of screen" << std::endl;
-				hit_enemy_type = DEFAULT;
-			}
-			Enemy *closest_enemy = get_closest_enemy();
-			if (closest_enemy != nullptr && 
-					closest_enemy->enemy_type == hit_enemy_type) {
-				std::cout << "The color of the closest guy == color that the camera is looking at" << std::endl;
-				// The color of the closest guy is equal to the color that
-				// the camera is looking at.
-				if (one.pressed && !two.pressed && !three.pressed &&
-						hit_enemy_type == RED) {
-					// Correctly hit a red guy while pressing the red key.
-					enemies_to_delete.push(closest_enemy->enemy_list_idx);
-				} else if (!one.pressed && two.pressed && !three.pressed &&
-						hit_enemy_type == GREEN) {
-					// Correctly hit a green guy while pressing the green key.
-					enemies_to_delete.push(closest_enemy->enemy_list_idx);
-				} else if (!one.pressed && !two.pressed && three.pressed &&
-						hit_enemy_type == YELLOW) {
-					// Correctly hit a yellow guy while pressing the yellow key.
-					enemies_to_delete.push(closest_enemy->enemy_list_idx);
-				}
-			}
-		}
-		// TODO: delete enemies that need to be deleted
-		for (; !enemies_to_delete.empty(); enemies_to_delete.pop()) {
-			uint enemy_idx = enemies_to_delete.front();
-			// Very bad idea: just move the mesh out of sight.
-			active_enemies[enemy_idx]->transform->position = glm::vec3(0.0f, 0.0f, -10.0f);
-			delete active_enemies[enemy_idx];
-			active_enemies[enemy_idx] = nullptr;
-		}
+	if (!is_dead)
+		handle_shooting(elapsed);
+
+	// Delete enemies that need to be deleted.
+	for (; !enemies_to_delete.empty(); enemies_to_delete.pop()) {
+		uint enemy_idx = enemies_to_delete.front();
+		// Very bad idea: just move the mesh out of sight.
+		active_enemies[enemy_idx]->transform->position = glm::vec3(0.0f, 0.0f, -10.0f);
+		delete active_enemies[enemy_idx];
+		active_enemies[enemy_idx] = nullptr;
 	}
 
 	//reset button press counters:
-	left.downs = 0;
-	right.downs = 0;
-	up.downs = 0;
-	down.downs = 0;
 	one.downs = 0;
 	two.downs = 0;
 	three.downs = 0;
@@ -442,12 +376,19 @@ void PlayMode::draw(glm::uvec2 const &drawable_size) {
 		));
 
 		constexpr float H = 0.09f;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+		std::string msg;
+		if (is_dead)
+			msg = std::string("Game over! Score: ") + std::to_string(score);
+		else
+			msg = std::string("1: Sound 1. 2: Sound 2. 3: Sound 3. ") +
+				std::string("Match the sound to the correct enemy type! Score: ") + 
+				std::to_string(score);
+		lines.draw_text(msg,
 			glm::vec3(-aspect + 0.1f * H, -1.0 + 0.1f * H, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0x00, 0x00, 0x00, 0x00));
 		float ofs = 2.0f / drawable_size.y;
-		lines.draw_text("Mouse motion rotates camera; WASD moves; escape ungrabs mouse",
+		lines.draw_text(msg,
 			glm::vec3(-aspect + 0.1f * H + ofs, -1.0 + + 0.1f * H + ofs, 0.0),
 			glm::vec3(H, 0.0f, 0.0f), glm::vec3(0.0f, H, 0.0f),
 			glm::u8vec4(0xff, 0xff, 0xff, 0x00));

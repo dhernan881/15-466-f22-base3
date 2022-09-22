@@ -23,7 +23,10 @@ struct PlayMode : Mode {
 	struct Button {
 		uint8_t downs = 0;
 		uint8_t pressed = 0;
-	} left, right, down, up, one, two, three;
+	} one, two, three;
+
+	uint score = 0;
+	bool is_dead = false;
 
 	// Enemy Stuff:
 	enum EnemyType {
@@ -56,6 +59,7 @@ struct PlayMode : Mode {
 	std::queue< uint > enemies_to_delete;
 
 	// Shooting Stuff:
+	void handle_shooting(float elapsed);
 	static constexpr float ShootDelay = 0.5f;
 	float shoot_timer = 0.0f;
 
